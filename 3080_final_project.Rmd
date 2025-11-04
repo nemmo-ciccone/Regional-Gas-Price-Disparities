@@ -1,5 +1,5 @@
 ---
-title: "3080_final_project"
+title: "3080 Project Part 1: Regional Gasoline Price Analysis"
 author: "Nemmo Ciccone"
 date: "2025-11-02"
 output: html_document
@@ -9,12 +9,10 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE, results="markup")
 ```
 
-## R Markdown
-
-### Introduction
+## Introduction
 Gasoline prices are a vital economic indicator and a significant component of consumer budgets. While national average prices are widely reported, they obscure the substantial price differences and volatility experienced by consumers at a regional level. These regional variations are driven by distinct local supply chains, state and local taxes, and environmental regulations mandating specific fuel blends (e.g., reformulated vs. conventional gasoline).
 
-This project investigates the statistical properties of U.S. gasoline prices on a regional basis. The analysis will use weekly price data from the U.S. Energy Information Administration (EIA) from 2003 to the present. The research aims to answer two primary questions:
+This project investigates the statistical properties of U.S. gasoline prices on a regional basis. The analysis will use weekly price data from the U.S. Energy Information Administration (EIA) from June 5, 2000 through October 27, 2025. The research aims to answer two primary questions:
 
 >Center: Is there a statistically significant difference in the overall mean weekly price of regular gasoline between distinct U.S. regions (e.g., the West Coast vs. the Gulf Coast)?
 
@@ -22,16 +20,22 @@ This project investigates the statistical properties of U.S. gasoline prices on 
 
 By answering these two statistical questions, this project aims to provide a quantitative foundation for exploring the broader empirical drivers of regional price disparities. Should statistically significant differences in mean price or volatility be found, the analysis will conclude by discussing the potential real-world implications, such as differing supply chain logistics, varying state tax burdens, regional differences in economic welfare, or distinct consumer search behaviors across these markets.
 
-### Data Summary
-#### (a) & (b) Data Collection
+## Data Summary
+### (a) & (b) Data Collection
+
 The data represents a sample, not a population. It is sourced from the U.S. Energy Information Administration's (EIA) Form EIA-878, "Motor Gasoline Price Survey." Every Monday, the EIA collects retail price data as of 8:00 a.m. from a representative sample of approximately 800 retail gasoline outlets across the United States. 
 
 This sample includes major national retailers, small chains, and independent owners. Data is collected via a multi-mode strategy, including telephone, email, text, fax, and web surveys. The final published figures are volume-weighted average prices for each region.
 
-#### (c) Data Modifications
-The raw data will be modified in two ways for this analysis:Data Selection: The analysis will use the "Regular All Areas All Formulations" price series. This series is the most representative of the consumer market and is the most appropriate for making "apples-to-apples" comparisons between regions that have different fuel formulation requirements.Transformation (for Volatility): To analyze price volatility (spread) independent of long-term trends, a second dataset will be created by calculating the first difference ($Price_{t} - Price_{t-1}$) of the weekly price data. This transforms the dataset from "price" to "week-over-week change."
+### (c) Data Modifications
 
-#### (d) Potential Issues
+Data Selection: The analysis will use the "Regular All Areas All Formulations" price series. This series is the most representative of the consumer market and is the most appropriate for making comparisons between regions that have different fuel formulation requirements.
+
+Transformation: To analyze price volatility (spread) independent of long-term trends, a second dataset will be created by calculating the log first difference. This data may be referred to as weekly log changes or simply weekly price changes. It is calculated as:
+
+>Log($Price_{t} - Price_{t-1}$) of the weekly price data. 
+
+### (d) Potential Issues
 
 Non-Stationarity: The raw price data is non-stationary, meaning its mean and variance change over time (e.g., prices from 2003 are not comparable to prices from 2023). This trend could skew a simple calculation of variance, which is why the first-difference transformation is necessary to analyze volatility.
 
@@ -39,30 +43,24 @@ Missing Data: The dataset may contain NA or blank values for certain weeks or re
 
 Methodology Changes: The EIA updated its sampling and estimation methodology in May 2018. This could create a structural break in the data, though its impact on comparing parameters between regions (which are sampled concurrently) is likely minimal.
 
-#### (e) Appropriateness
-The EIA data is ideal for this research. Its weekly frequency, long historical time-span, and clear regional segmentation (PADDs) provide robust, high-integrity data to calculate and compare the long-term parameters of center (mean) and spread (variance)
+### (e) Appropriateness
 
+The EIA data is ideal for this research. Its weekly frequency, long historical time-span, and clear regional segmentation (PADDs) provide robust, high-integrity data to calculate and compare the long-term parameters of center and spread across U.S. regions.
 
-### Exploratory analysis
-
+## Exploratory analysis
 ```{r, message=FALSE, warning=FALSE}
 library(readxl)
 library(tidyverse)
 ```
 
+### Data Import and Cleaning
 ```{r}
 # List all sheets in the Excel file
 excel_sheets("eia_gas_data.xls")
-```
-
-```{r}
-# Read a specific sheet, we will use "Data 3", which is Regular All Areas All Formulations
-#first 2 rows are headers to skip
+# Read in "Data 3" sheet, which is Regular All Areas All Formulations; remove headers
 reg_gas<-read_excel("eia_gas_data.xls", sheet = "Data 3", skip = 2) 
-#colnames(reg_gas)
 ```
 ```{r, echo=FALSE}
-# Only keep the PADD Regions columns and Date
 # Keep Date + PADD zone columns
 padd_cols <- c(
   "Date",
@@ -74,13 +72,11 @@ padd_cols <- c(
   "Weekly Rocky Mountain Regular All Formulations Retail Gasoline Prices  (Dollars per Gallon)",
   "Weekly West Coast Regular All Formulations Retail Gasoline Prices  (Dollars per Gallon)"
 )
-
 reg_gas_regions <- reg_gas[, padd_cols]
 
-# Check new columns
+# Simplify column names
 colnames(reg_gas_regions) <- c('Date', 'New England', 'Central Atlantic', 'Lower Atlantic', 'Midwest', 'Gulf Coast', 'Rocky Mountain', 'West Coast')
 ```
-
 ```{r}
 # Remove initial rows with NA values
 reg_gas_regions<-reg_gas_regions[-(1:511), ]
@@ -112,15 +108,14 @@ regional_diffs<- reg_gas_long %>%
            Deviation_From_Avg = Price - Avg_Price_All_Regions) %>%
     ungroup()
 ```
-
-#### Summary Statistics
+### Summary Statistics
 ```{r}
 # Numerical Summaries for Prices by Region
 summary_prices <-na.omit(reg_gas_long) %>%
     group_by(Region) %>%
     summarize(
         Mean_Price = mean(Price),
-        Median_Price = median(Price, na.rm = ),
+        Median_Price = median(Price),
         SD_Price = sd(Price),
         Min = min(Price),
         Max = max(Price)
@@ -130,63 +125,43 @@ print(summary_prices)
 
 ```{r}
 # Numerical Summaries for Price Changes by Region
-summary_price_changes <-reg_gas_logs %>%
+summary_price_changes <-na.omit(reg_gas_logs) %>%
     group_by(Region) %>%
     summarize(
-        Mean_Change = mean(Log_Change, na.rm = TRUE),
-        Median_Change = median(Log_Change, na.rm = TRUE),
-        SD_Change = sd(Log_Change, na.rm = TRUE),
-        Min_Change = min(Log_Change, na.rm = TRUE),
-        Max_Change = max(Log_Change, na.rm = TRUE)
+        Mean_Change = mean(Log_Change),
+        Median_Change = median(Log_Change),
+        SD_Change = sd(Log_Change),
+        Min_Change = min(Log_Change),
+        Max_Change = max(Log_Change)
     )
 print(summary_price_changes)
 ```
 
 ### Graphical Summaries
-
 ```{r}
 # Boxplot of Prices by Region
 ggplot(reg_gas_long, aes(x = Region, y = Price)) +
     geom_boxplot(fill = "lightblue") +
-    labs(title = "Boxplot of Weekly Gasoline Prices by Region",
+    labs(title = "Average Weekly Gasoline Prices by Region",
          x = "Region",
          y = "Price (Dollars per Gallon)") +
     theme_minimal()
 ```
 
 ```{r}
-# Create a Violin Plot
+#Violin Plot
 ggplot(na.omit(reg_gas_logs), aes(x = Region, y = Log_Change, fill = Region)) +
   geom_violin() +
-  
-  # Add a small boxplot inside for more detail (optional but nice)
-  geom_boxplot(width = 0.1, fill = "white", outlier.shape = NA) +
-  
   scale_y_continuous(labels = scales::percent) + # Format Y-axis as %
-  theme_minimal() +
   labs(
     title = "Distribution of Weekly Price Volatility by Region",
-    subtitle = "Wider violins indicate higher volatility",
     x = "Region",
     y = "Week-over-Week Percentage Change"
   ) +
-  theme(legend.position = "none", # Remove legend (redundant)
-        axis.text.x = element_text(angle = 45, hjust = 1)) # Angle labels
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) # Angle labels
 ```
-
 ```{r}
-ggplot(na.omit(reg_gas_logs), aes(x = Date, y = Log_Change, color = Region)) +
-  geom_line() +
-  labs(
-    title = "Weekly Price Changes Over Time by Region",
-    x = "Date",
-    y = "Week-over-Week Price Change (Dollars)",
-    color = "Region"
-  ) +
-  theme_minimal()
-```
-
-```{r}
+# Line Plot of Regional Deviations from National Average Over Time
 ggplot(regional_diffs, aes(x = Date, y = Deviation_From_Avg, color = Region)) +
   geom_line() +
   labs(
@@ -198,21 +173,28 @@ ggplot(regional_diffs, aes(x = Date, y = Deviation_From_Avg, color = Region)) +
   theme_minimal()
 ```
 
-### Conclusions
+## Conclusions
+Looking first at the summary statistics for mean regular gas prices from June 2000 to October 2025, there are clear differences between regions. The West Coast has the highest average, while the Gulf Coast has the lowest. This aligns with known factors such as higher state taxes and stricter environmental regulations on the West Coast. This difference in mean prices is visually supported by the boxplot, which shows the West Coast's prices are consistently higher than other regions which cluster lower.
 
+Addressing the volatility of prices, the summary statistics for week-over-week log changes indicate that the Midwest has the highest standard deviation (0.0296), suggesting it experiences the most price volatility. The violin plot further illustrates this, showing a wider distribution of price changes in the Midwest compared to other regions. The regions with the lowest standard deviation in price changes are Central Atlantic (0.0195) and New England (0.0199), indicating more stable prices.
 
+The final graph showing regional deviations from the national average over time highlights persistent patterns. The West Coast consistently deviates positively from the average, and this deviation appears to have increased over time as the distance between the West Coast and other regions has widened. Another takeaway from this graph is the apparent spikes in observed gas prices particular only to certain regions (such as Rocky Mountain spike in 2022, California in 2023). These spikes may be attributable to localized supply disruptions, refinery issues, or regional policy changes affecting fuel prices.
 
-
-
-
+In conclusion, the analysis implies differences in both the mean and volatility of weekly regular gasoline prices across U.S. regions. The West Coast's higher average prices and the Midwest's greater volatility suggest that regional factors such as supply chain logistics, tax policies, and consumer behavior play crucial roles in gasoline market dynamics. Further research could explore these underlying causes in more detail, potentially informing policy decisions aimed at stabilizing prices and reducing regional disparities.
 \newpage
-### References
 
-- Baghestani, Hamid, and Bley, Jorg (2020). *Do Directional Predictions of US Gasoline Prices Reveal Asymmetries?* Journal of Economics and Finance, 44, 348–360.  
-- Tappata, Mariano. (2009). *Rockets and Feathers: Understanding Asymmetric Pricing.* RAND Journal of Economics, 40(4), 673–687.  
-- \href{https://www.eia.gov/petroleum/gasdiesel/}{EIA Gasoline Data}
-- \href{https://www.eia.gov/petroleum/gasdiesel/gas_proc-methods.php}{EIA Methods}
-- \href{https://gasprices.aaa.com/}{AAA Gas Prices}
-- \href{https://www.eia.gov/todayinenergy/detail.php?id=65184}{EIA Today in Energy}
+## References
+
+*AAA Gas Prices.* American Automobile Association. [https://gasprices.aaa.com/](https://gasprices.aaa.com/)  
+
+Baghestani, Hamid, and Jörg Bley. “Do Directional Predictions of US Gasoline Prices Reveal Asymmetries?” *Journal of Economics and Finance*, vol. 44, 2020, pp. 348–360.    
+
+“Gasoline and Diesel Fuel Update: Processing Methods.” *U.S. Energy Information Administration (EIA)*. [https://www.eia.gov/petroleum/gasdiesel/gas_proc-methods.php](https://www.eia.gov/petroleum/gasdiesel/gas_proc-methods.php)  
+
+“Gasoline and Diesel Fuel Update.” *U.S. Energy Information Administration (EIA)*. [https://www.eia.gov/petroleum/gasdiesel/](https://www.eia.gov/petroleum/gasdiesel/)  
+
+Tappata, Mariano. “Rockets and Feathers: Understanding Asymmetric Pricing.” *RAND Journal of Economics*, vol. 40, no. 4, 2009, pp. 673–687.
+
+“Today in Energy.” *U.S. Energy Information Administration (EIA)*. [https://www.eia.gov/todayinenergy/detail.php?id=65184](https://www.eia.gov/todayinenergy/detail.php?id=65184)  
 
 
