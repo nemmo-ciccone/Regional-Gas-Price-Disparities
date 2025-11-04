@@ -197,4 +197,12 @@ Tappata, Mariano. “Rockets and Feathers: Understanding Asymmetric Pricing.” 
 
 “Today in Energy.” *U.S. Energy Information Administration (EIA)*. [https://www.eia.gov/todayinenergy/detail.php?id=65184](https://www.eia.gov/todayinenergy/detail.php?id=65184)  
 
+### Project Repository
 
+The code and data for this project are available at: [https://github.com/nemmo-ciccone/Regional-Gas-Price-Disparities](https://github.com/nemmo-ciccone/Regional-Gas-Price-Disparities)
+
+### Generative AI Documentation
+
+This document was prepared with the assistance of Google Gemini 2.5. The AI was used to help with syntax for creating R code chunks, data manipulation, and debugging. All code was reviewed and modified as necessary by the author. The AI did not contribute to the analysis, interpretation of results, or writing of the document.
+
+Nemmo Ciccone, November 4, 2025
